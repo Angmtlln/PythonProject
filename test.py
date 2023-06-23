@@ -1,46 +1,64 @@
+from math import radians, sin, cos
 from nn import Net
-from random import randint as rnd
+from random import randint as rnd, random
 import pygame
-from math import sin, cos, radians
 
 
-# A display window is created with dimensions 350x350 pixels. The neural network object is created using weights loaded from a file. A surface object is created with a size of 7x7 pixels. This surface will be used to draw polygons.
+def angle_to_array(angle):
+    if 0 <= angle < 60:
+        return (1 - angle / 60, angle / 60, 0)
+    if 60 <= angle < 120:
+        angle -= 60
+        return (0, 1 - angle / 60, angle / 60)
+    if 120 <= angle <= 180:
+        angle -= 120
+        return (angle / 60, 0, 1 - angle / 60)
+
+
+def array_to_angle(array):
+    if array[2] == 0:
+        return array[1] * 60
+    if array[0] == 0:
+        return 60 + array[2] * 60
+    if array[1] == 0:
+        return 120 + array[0] * 60
+
+
+def angle_to_line(angle):
+    angle = radians(angle)
+    x1, y1 = cos(angle), sin(angle)
+    x2, y2 = -x1, -y1
+    b = x2 - x1
+    a = y1 - y2
+    c = -(a * x1 + b * y1) + (random() - 0.5) * 6
+    return a, b, c
+
+
+net = Net(file='weights/art40.net')
 dis = pygame.display.set_mode((350, 350))
-net = Net(file='weights/arts20.net')
-sample = pygame.Surface((7, 7))
-# An infinite loop is initiated to continuously update the graphics.
+
 while True:
-    # Random background color and polygon color are generated within a certain range of values. An angle is also randomly chosen, and the output value for the neural network is set based on the normalized angle.
-    bg = rnd(1, 254)
-    sample.fill((bg, bg, bg))
-    color = bg
-    while abs(color - bg) < 10:
-        color = rnd(1, 254)
-    angle = rnd(0, 180)
-    output = [angle / 180]
-    # The x and y components are calculated based on the angle using trigonometric functions.
-    x = int(cos(radians(angle)) * 10)
-    y = int(sin(radians(angle)) * 10)
-    # Depending on the relative positions of x and y, a polygon is drawn on the sample surface using the calculated values.
-    if y > abs(x):
-        pygame.draw.polygon(sample, [color] * 3, ((3 + x, 3 + y), (7, 7), (7, 0), (3 - x, 3 - y)))
-    elif x > 0:
-        pygame.draw.polygon(sample, [color] * 3, ((3 + x, 3 + y), (7, 7), (0, 7), (3 - x, 3 - y)))
-    else:
-        pygame.draw.polygon(sample, [color] * 3, ((3 + x, 3 + y), (0, 7), (7, 7), (3 - x, 3 - y)))
-    # The color information of each pixel in the sample surface is retrieved and normalized. The normalized color values are then added to the input list.
-    input = []
-    for x in range(7):
-        for y in range(7):
-            input.append((sum(sample.get_at((x, y))[:3])) / 765)
-    angle = radians(net.get(input)[0] * 180)
-    dis.blit(pygame.transform.scale(sample, (350, 350)), (0, 0))
-    dx, dy = cos(angle) * 300, sin(angle) * 300
-    pygame.draw.line(dis, (255, 0, 0), (175 - dx, 175 - dy), (175 + dx, 175 + dy), 10)
-    # The neural network is used to predict the angle based on the input data. The sample surface is scaled up to the size of the display window and blitted onto it. A line is drawn on the display window indicating the predicted angle.
+    col1 = (rnd(0, 255), rnd(0, 255), rnd(0, 255))
+    col2 = col1
+    while sum(abs(i - j) for i, j in zip(col1, col2)) < 60:
+        col2 = (rnd(0, 255), rnd(0, 255), rnd(0, 255))
+    angle = random() * 180
+    a, b, c = angle_to_line(angle)
+    test = []
+    for x in range(-3, 4):
+        for y in range(-3, 4):
+            col = [min(max(i + rnd(-20, 20), 0), 255) for i in (col1, col2)[a * x + b * y + c > 0]]
+            pygame.draw.rect(dis, col, ((x + 3) * 50, (y + 3) * 50, 50, 50))
+            test += [i / 255 for i in col]
+    array = list(net.get(test))
+    array[array.index(min(array))] = 0
+    array = [i / sum(array) for i in array]
+    angle = array_to_angle(array)
+    x, y = cos(radians(angle)) * 250, sin(radians(angle)) * 250
+    pygame.draw.line(dis, (0, 0, 0), (175 + x, 175 + y), (175 - x, 175 - y), 10)
     pressed = False
     while not pressed:
         for ev in pygame.event.get():
-            if ev.type == pygame.KEYDOWN:
+            if ev.type == pygame.MOUSEBUTTONDOWN:
                 pressed = True
         pygame.display.update()
