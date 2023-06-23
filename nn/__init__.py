@@ -1,6 +1,5 @@
-from nn.activate_functions import Sigmoid, Function
-from random import random as rnd
-from copy import deepcopy
+import numpy as np
+from nn import activate_functions
 from json import loads
 
 
@@ -10,22 +9,21 @@ class Net:
     creates a neural network, using weights, bias and activate function
     uses the error back propagation method for training
     """
-
-    def __init__(self, *args, activate_function: Function = Sigmoid, file=None):
+    def __init__(self, *args, activate_function=activate_functions.Sigmoid, file=None):
         """
         creating a neural network or reading it from the file
         :param args: number of neurons on each layer
         :param activate_function: activate function for neurons
         :param file: if not None, then read weights and bias from file
         """
+        self.function = activate_function
         if file:
             with open(file) as f:
-                self.weights = loads(f.readline())
-                self.bias = loads(f.readline())
+                self.weights = [np.array(i) for i in loads(f.readline())]
+                self.bias = [np.array(i) for i in loads(f.readline())]
         else:
-            self.weights = [[[rnd() - 0.5 for __ in range(i)] for _ in range(j)] for i, j in zip(args, args[1:])]
-            self.bias = [[rnd() - 0.5 for _ in range(i)] for i in args[1:]]
-        self.function = activate_function
+            self.weights = [np.random.random((i, j)) - np.random.random((i, j)) for i, j in zip(args, args[1:])]
+            self.bias = [np.random.random(i) - np.random.random(i) for i in args[1:]]
 
     def get(self, input):
         """
@@ -33,15 +31,9 @@ class Net:
         :param input: iterating class object input
         :return: the value on the last layer of the neural network
         """
-        for layer, bias in zip(self.weights, self.bias):
-            next = []
-            for neuron, bias_neuron in zip(layer, bias):
-                z = bias_neuron
-                for weight, activator in zip(neuron, input):
-                    z += weight * activator
-                z = self.function.activate(z)
-                next.append(z)
-            input = next
+        input = np.array(input)
+        for weights, bias in zip(self.weights, self.bias):
+            input = self.function.activate(input @ weights + bias)
         return input
 
     def train(self, input, output, k=1):
@@ -52,33 +44,23 @@ class Net:
         :param k: coefficient of training
         :return: None
         """
-        all_layers = [list(input)]
-        z_mas = []
-        for layer, bias in zip(self.weights, self.bias):
-            all_layers.append([])
-            z_mas.append([])
-            for neuron, bias_neuron in zip(layer, bias):
-                z = bias_neuron
-                for weight, activator in zip(neuron, all_layers[-2]):
-                    z += weight * activator
-                z_mas[-1].append(z)
-                z = self.function.activate(z)
-                all_layers[-1].append(z)
-        err = [2 * (i - j) for i, j in zip(all_layers[-1], output)]
-        new_w = deepcopy(self.weights)
-        for j in range(len(z_mas) - 1, -1, -1):
-            for i in range(len(err)):
-                err[i] *= self.function.derivative(z_mas[j][i])
-            for i in range(len(self.bias[j])):
-                self.bias[j][i] -= err[i] * k
-                for l in range(len(new_w[j][i])):
-                    new_w[j][i][l] -= err[i] * all_layers[j][l] * k
-            prev_err = [0] * len(all_layers[j])
-            for i in range(len(err)):
-                for l in range(len(self.weights[j][i])):
-                    prev_err[l] += err[i] * self.weights[j][i][l]
-            err = prev_err
-        self.weights = new_w
+        input = np.array(input)
+        z = []
+        f = []
+        for weights, bias in zip(self.weights, self.bias):
+            f.append(input)
+            input = input @ weights + bias
+            z.append(input)
+            input = self.function.activate(input)
+        diff = []
+        error = (input - np.array(output)).reshape(1, input.shape[0])
+        for i, (Z, F) in enumerate(zip(z[::-1], f[::-1])):
+            error *= self.function.derivative(Z)
+            diff.append(k * F.reshape(F.shape[0], 1) @ error)
+            self.bias[-i - 1] -= k * error[0]
+            error = error @ self.weights[-i - 1].T
+        for i, dif in enumerate(diff[::-1]):
+            self.weights[i] -= dif
 
     def save(self, name):
         """
@@ -87,4 +69,6 @@ class Net:
         :return: None
         """
         with open(f'{name}.net', 'w') as f:
-            f.write(f'{self.weights}\n{self.bias}')
+            f.write(str([[list(w) for w in weight] for weight in self.weights]))
+            f.write('\n')
+            f.write(str([list(i) for i in self.bias]))
