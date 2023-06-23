@@ -1,4 +1,4 @@
-from math import e
+import numpy as np
 
 
 class Function:
@@ -6,9 +6,8 @@ class Function:
     abstract class
     activate function for neurons
     """
-
     @staticmethod
-    def activate(x: float) -> float:
+    def activate(x):
         """
         static method
         :param x: input of neuron
@@ -17,7 +16,7 @@ class Function:
         pass
 
     @staticmethod
-    def derivative(x: float) -> float:
+    def derivative(x):
         """
         static method
         :param x: input of neuron
@@ -31,11 +30,10 @@ class Sigmoid(Function):
     limits the values of neurons between 0 and 1
     """
     @staticmethod
-    def activate(x: float) -> float:
-        x = max(min(x, 700), -700)
-        return 1 / (1 + e ** -x)
+    def activate(x):
+        return 1 / (1 + np.exp(-x))
 
     @staticmethod
-    def derivative(x: float) -> float:
+    def derivative(x):
         f = Sigmoid.activate(x)
         return f * (1 - f)
