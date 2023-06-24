@@ -1,9 +1,10 @@
+
 from math import radians, sin, cos
 from nn import Net
 from random import randint as rnd, random
 
 
-def angle_to_array(angle):
+def angle_to_array(angle): # Function to convert an angle into an RGB color array
     if 0 <= angle < 60:
         return (1 - angle / 60, angle / 60, 0)
     if 60 <= angle < 120:
@@ -14,7 +15,7 @@ def angle_to_array(angle):
         return (angle / 60, 0, 1 - angle / 60)
 
 
-def angle_to_line(angle):
+def angle_to_line(angle): # Function to convert an angle into a line equation in the form of ax + by + c = 0
     angle = radians(angle)
     x1, y1 = cos(angle), sin(angle)
     x2, y2 = -x1, -y1
@@ -33,14 +34,15 @@ while True:
     while sum(abs(i - j) for i, j in zip(col1, col2)) < 60:
         col2 = (rnd(0, 255), rnd(0, 255), rnd(0, 255))
     angle = random() * 180
-    a, b, c = angle_to_line(angle)
+    a, b, c = angle_to_line(angle) # Convert the angle to a line equation
     test = []
     for x in range(-3, 4):
         for y in range(-3, 4):
+            # Determine the color based on the line equation and colors col1 and col2
             col = [min(max(i + rnd(-20, 20), 0), 255) for i in (col1, col2)[a * x + b * y + c > 0]]
             test += [i / 255 for i in col]
     net.train(test, angle_to_array(angle), 0.5)
     q += 1
     if q % 5000 == 0:
-        net.save(f'weights/art{q // 5000}')
+        net.save(f'weights/art{q // 5000}') # Save the weights of the neural network to a file
         print(q)
