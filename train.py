@@ -3,7 +3,7 @@ from math import radians, sin, cos
 from nn import Net
 from random import randint as rnd, random
 
-# Function to convert angle to RGB array representation
+# Function to convert angle to array representation
 def angle_to_array(angle):
     if 0 <= angle < 60:
         return (1 - angle / 60, angle / 60, 0)
